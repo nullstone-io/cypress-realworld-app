@@ -83,6 +83,7 @@ jobs:
       NULLSTONE_APP: frontend
       NULLSTONE_BLOCK: frontend
       NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+      API_URL: "https://api.${{ needs.create-ephemeral-env.outputs.env_name }}.realworld.nullst.one"
     outputs:
       public_url: ${{ steps.public-url.outputs.public_url }}
     steps:
@@ -90,10 +91,10 @@ jobs:
         uses: dcarbone/install-jq-action@v2
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
-      - run: yarn install
-      - run: yarn build
-        env:
-          API_URL: "https://api.${NULLSTONE_ENV}.realworld.nullst.one"
+      - name: Install dependencies
+        run: yarn install
+      - name: Build
+        run: yarn build
       - name: Push
         run: nullstone push --source=build/
       - name: Deploy
