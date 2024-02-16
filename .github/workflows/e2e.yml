@@ -6,9 +6,11 @@ on:
 env:
   NULLSTONE_ORG: nullstone
   NULLSTONE_STACK: demo-cypress
+  NULLSTONE_API_KEY: ${{ secrets.NULLSTONE_API_KEY }}
 
 jobs:
   create-ephemeral-env:
+    name: "Create ephemeral env"
     runs-on: ubuntu-latest
     if: github.event.label.name == 'e2e'
     outputs:
@@ -24,6 +26,7 @@ jobs:
           echo "NULLSTONE_ENV=${env_name}" >> $GITHUB_ENV
           echo "New unique environment name: ${env_name}"
   ephemeral-env-up:
+    name: "Launch ephemeral env"
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env]
     env:
@@ -34,6 +37,7 @@ jobs:
       - name: Launch Ephemeral Env
         run: nullstone envs up
   ephemeral-env-down:
+    name: "Destroy ephemeral env"
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs: [e2e-tests, create-ephemeral-env]
@@ -46,6 +50,7 @@ jobs:
         run: nullstone envs down
 
   backend:
+    name: "Deploy Backend"
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env]
     env:
@@ -94,6 +99,7 @@ jobs:
           echo "public_url=$(nullstone outputs --plain | jq -r '.public_urls[0]')" >> "$GITHUB_OUTPUT"
 
   db-seed:
+    name: "Seed database"
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env, backend]
     env:
@@ -105,6 +111,7 @@ jobs:
         run: nullstone exec --app=realworld-api yarn db:seed
 
   e2e-tests:
+    name: "Run end-to-end tests"
     timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
