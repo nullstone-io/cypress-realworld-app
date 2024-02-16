@@ -54,7 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env]
     env:
-      NULLSTONE_APP: realworld-api
+      NULLSTONE_APP: backend
+      NULLSTONE_BLOCK: backend
       NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
     steps:
       - name: Checkout code
@@ -79,8 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env]
     env:
-      NULLSTONE_APP: realworld-app
-      NULLSTONE_BLOCK: realworld-app
+      NULLSTONE_APP: frontend
+      NULLSTONE_BLOCK: frontend
       NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
     outputs:
       public_url: ${{ steps.public-url.outputs.public_url }}
@@ -89,8 +90,12 @@ jobs:
         uses: dcarbone/install-jq-action@v2
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
-      - name: Push docker image
-        run: nullstone push --source=backend
+      - run: yarn install
+      - run: yarn build
+        env:
+          API_URL: "https://api.${NULLSTONE_ENV}.realworld.nullst.one"
+      - name: Push
+        run: nullstone push --source=build/
       - name: Deploy
         run: nullstone deploy --wait
       - id: public-url
@@ -103,12 +108,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-ephemeral-env, backend]
     env:
+      NULLSTONE_APP: backend
       NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
     steps:
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
       - name: Run seeds
-        run: nullstone exec --app=realworld-api yarn db:seed
+        run: nullstone exec yarn db:seed
 
   e2e-tests:
     name: "Run end-to-end tests"
