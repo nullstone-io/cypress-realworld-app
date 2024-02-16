@@ -5,7 +5,7 @@ on:
 
 env:
   NULLSTONE_ORG: nullstone
-  NULLSTONE_STACK: demo-cypress
+  NULLSTONE_STACK: cypress-realworld
   NULLSTONE_API_KEY: ${{ secrets.NULLSTONE_API_KEY }}
 
 jobs:
