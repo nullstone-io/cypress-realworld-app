@@ -77,7 +77,7 @@ jobs:
       - name: Push docker image
         run: nullstone push --source=backend
       - name: Deploy
-        run: nullstone deploy
+        run: nullstone deploy --wait
   frontend:
     name: "Deploy Frontend"
     runs-on: ubuntu-latest
