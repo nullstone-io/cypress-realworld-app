@@ -89,6 +89,8 @@ jobs:
     outputs:
       public_url: ${{ steps.public-url.outputs.public_url }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: 'Set up jq'
         uses: dcarbone/install-jq-action@v2
       - name: Set up Nullstone
