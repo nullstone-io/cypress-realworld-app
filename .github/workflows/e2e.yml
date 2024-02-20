@@ -71,6 +71,8 @@ jobs:
           tags: backend
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
+      - name: Wait for backend to provision
+        run: nullstone wait --for=launched
       - name: Push docker image
         run: nullstone push --source=backend
       - name: Deploy
@@ -95,6 +97,8 @@ jobs:
         run: yarn install
       - name: Build
         run: yarn build
+      - name: Wait for frontend to provision
+        run: nullstone wait --for=launched
       - name: Push
         run: nullstone push --source=build/
       - name: Deploy
