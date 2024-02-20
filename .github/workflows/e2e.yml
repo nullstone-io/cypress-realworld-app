@@ -68,6 +68,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          load: true
           tags: backend
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
