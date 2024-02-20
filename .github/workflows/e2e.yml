@@ -89,10 +89,13 @@ jobs:
     outputs:
       public_url: ${{ steps.public-url.outputs.public_url }}
     steps:
-      - name: 'Setup jq'
+      - name: 'Set up jq'
         uses: dcarbone/install-jq-action@v2
       - name: Set up Nullstone
         uses: nullstone-io/setup-nullstone-action@v0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
       - name: Install dependencies
         run: yarn install
       - name: Build
