@@ -1,0 +1,188 @@
+name: "Perform end-to-end tests with Nullstone"
+on:
+  pull_request:
+    types: [labeled]
+
+env:
+  NULLSTONE_ORG: nullstone
+  NULLSTONE_STACK: cypress-realworld
+  NULLSTONE_API_KEY: ${{ secrets.NULLSTONE_API_KEY }}
+
+jobs:
+  create-ephemeral-env:
+    name: "Create ephemeral env"
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'e2e'
+    outputs:
+      env_name: ${{ steps.create.outputs.env_name }}
+    steps:
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - id: create
+        name: Create Ephemeral Env
+        run: |
+          env_name=$(nullstone envs new --preview --name="${{ github.head_ref }}-${{ github.run_id }}")
+          echo "env_name=${env_name}" >> "$GITHUB_OUTPUT"
+          echo "NULLSTONE_ENV=${env_name}" >> $GITHUB_ENV
+          echo "New unique environment name: ${env_name}"
+  ephemeral-env-up:
+    name: "Launch ephemeral env"
+    runs-on: ubuntu-latest
+    needs: [create-ephemeral-env]
+    env:
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+    steps:
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - name: Launch Ephemeral Env
+        run: nullstone envs up
+  ephemeral-env-down:
+    name: "Destroy ephemeral env"
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs: [e2e-tests, create-ephemeral-env]
+    env:
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+    steps:
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - name: Destroy ephemeral env
+        run: nullstone envs down
+
+  backend:
+    name: "Deploy Backend"
+    runs-on: ubuntu-latest
+    needs: [create-ephemeral-env]
+    env:
+      NULLSTONE_APP: backend
+      NULLSTONE_BLOCK: backend
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build backend docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: backend
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - name: Wait for backend to provision
+        run: nullstone wait --for=launched
+      - name: Push docker image
+        run: nullstone push --source=backend
+      - name: Deploy backend
+        run: nullstone deploy --wait
+  migrations:
+    name: "Deploy migrations"
+    runs-on: ubuntu-latest
+    needs: [create-ephemeral-env]
+    env:
+      NULLSTONE_APP: migrations
+      NULLSTONE_BLOCK: migrations
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build backend docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: migrations
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - name: Wait for migrations to provision
+        run: nullstone wait --for=launched
+      - name: Push docker image
+        run: nullstone push --source=migrations
+      - name: Deploy migrations
+        run: nullstone deploy --wait
+
+  frontend:
+    name: "Deploy Frontend"
+    runs-on: ubuntu-latest
+    needs: [create-ephemeral-env]
+    env:
+      NULLSTONE_APP: frontend
+      NULLSTONE_BLOCK: frontend
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+      API_URL: "https://api.${{ needs.create-ephemeral-env.outputs.env_name }}.realworld.nullst.one"
+    outputs:
+      public_url: ${{ steps.public-url.outputs.public_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: 'Set up jq'
+        uses: dcarbone/install-jq-action@v2
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+      - name: Install dependencies
+        run: yarn install
+      - name: Build
+        run: yarn build
+      - name: Wait for frontend to provision
+        run: nullstone wait --for=launched
+      - id: public-url
+        name: Retrieve frontend public URL
+        run: |
+          echo "public_url=$(nullstone outputs --plain | jq -r '.public_urls[0]')" >> "$GITHUB_OUTPUT"
+      - name: Push
+        run: nullstone push --source=build/
+      - name: Deploy
+        run: nullstone deploy --wait
+
+  db-seed:
+    name: "Seed database"
+    runs-on: ubuntu-latest
+    needs: [create-ephemeral-env, migrations]
+    env:
+      NULLSTONE_APP: migrations
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+    steps:
+      - name: Set up Nullstone
+        uses: nullstone-io/setup-nullstone-action@v0
+      - name: Run seeds
+        run: nullstone exec yarn db:seed
+
+  e2e-tests:
+    name: "Run end-to-end tests"
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:node-18.16.0-chrome-114.0.5735.133-1-ff-114.0.2-edge-114.0.1823.51-1
+      options: --user 1001
+    needs: [create-ephemeral-env, frontend, backend, db-seed]
+    env:
+      NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}
+      APP_URL: ${{ needs.frontend.outputs.public_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: "UI Tests - Chrome"
+        uses: cypress-io/github-action@v6
+        with:
+          build: yarn cypress info
+          browser: chrome
+          record: true
+          parallel: true
+          group: "UI - Chrome"
+          spec: cypress/tests/ui/*
+          config-file: cypress.config.ts
+        env:
+          # Recommended: pass the GitHub token lets this action correctly
+          # determine the unique run id necessary to re-run the checks
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: "cypress:server:args"

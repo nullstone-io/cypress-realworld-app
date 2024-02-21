@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import Promise from "bluebird";
 import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
+import { apiUrl } from "./src/utils/apiUtils";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -17,7 +18,7 @@ module.exports = defineConfig({
     runMode: 2,
   },
   env: {
-    apiUrl: "http://localhost:3001",
+    apiUrl: apiUrl,
     mobileViewportWidthBreakpoint: 414,
     coverage: false,
     codeCoverage: {
@@ -64,7 +65,7 @@ module.exports = defineConfig({
     },
   },
   e2e: {
-    baseUrl: "http://localhost:3000",
+    baseUrl: process.env.APP_URL || "http://localhost:3000",
     specPattern: "cypress/tests/**/*.spec.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.ts",
     viewportHeight: 1000,
