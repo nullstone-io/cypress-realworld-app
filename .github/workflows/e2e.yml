@@ -74,9 +74,13 @@ jobs:
         uses: nullstone-io/setup-nullstone-action@v0
       - name: Wait for backend to provision
         run: nullstone wait --for=launched
-      - name: Push docker image
+      - name: Push docker image to migrations
+        run: nullstone push --source=backend --app=migrations
+      - name: Push docker image to backend
         run: nullstone push --source=backend
-      - name: Deploy
+      - name: Deploy migrations
+        run: nullstone deploy --source=backend --app=migrations
+      - name: Deploy backend
         run: nullstone deploy --wait
   frontend:
     name: "Deploy Frontend"
