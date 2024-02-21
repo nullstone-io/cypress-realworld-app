@@ -147,7 +147,7 @@ jobs:
   db-seed:
     name: "Seed database"
     runs-on: ubuntu-latest
-    needs: [create-ephemeral-env, backend]
+    needs: [create-ephemeral-env, migrations]
     env:
       NULLSTONE_APP: migrations
       NULLSTONE_ENV: ${{ needs.create-ephemeral-env.outputs.env_name }}

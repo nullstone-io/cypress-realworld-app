@@ -1,9 +1,25 @@
 version: "0.1"
 
+subdomains:
+  app-subdomain:
+    module: nullstone/aws-subdomain
+    dns_name: app.realworld
+    connections:
+      domain: nullst.one
+  api-subdomain:
+    module: nullstone/aws-subdomain
+    dns_name: api.realworld
+    connections:
+      domain: nullst.one
+
 apps:
   frontend:
     module: nullstone/aws-fargate-service
     vars: {}
+    capabilities:
+      - module: nullstone/aws-s3-cdn
+        connections:
+          subdomain: app-subdomain
   backend:
     module: nullstone/aws-fargate-service
     vars: {}
@@ -11,6 +27,10 @@ apps:
       cluster-namespace: namespace0
     environment:
       CORS_ORIGINS: "https://app.realworld.{{ NULLSTONE_ENV }}.nullst.one"
+    capabilities:
+      - module: nullstone/aws-load-balancer
+        connections:
+          subdomain: api-subdomain
   migrations:
     module: nullstone/aws-fargate-task
     vars: {}
