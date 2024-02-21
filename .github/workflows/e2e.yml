@@ -79,7 +79,7 @@ jobs:
       - name: Push docker image to backend
         run: nullstone push --source=backend
       - name: Deploy migrations
-        run: nullstone deploy --source=backend --app=migrations
+        run: nullstone deploy --app=migrations
       - name: Deploy backend
         run: nullstone deploy --wait
   frontend:
